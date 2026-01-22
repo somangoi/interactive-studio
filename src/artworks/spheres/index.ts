@@ -15,16 +15,16 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-// OrbitControls for camera (background drag)
+// OrbitControls for camera (직관적인 드래그 방향)
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.enableZoom = true;
 controls.enablePan = false;
-// 상하 회전 제한 해제 (완전 자유롭게)
-controls.minPolarAngle = 0;
-controls.maxPolarAngle = Math.PI;
-// 수평 회전도 무제한
+// 상하 회전: 거의 180도까지 (위아래 끝까지 볼 수 있음)
+controls.minPolarAngle = 0.01;
+controls.maxPolarAngle = Math.PI - 0.01;
+// 좌우 회전: 무제한
 controls.minAzimuthAngle = -Infinity;
 controls.maxAzimuthAngle = Infinity;
 
