@@ -1,0 +1,68 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getArtworks } from '../../artworks';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+	const artworks = await getArtworks();
+	return artworks.map((artwork) => ({
+		params: { slug: artwork.slug },
+		props: { artwork },
+	}));
+};
+
+const { artwork } = Astro.props;
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{artwork.meta.title} | Interactive Studio</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			html, body {
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+			}
+			canvas {
+				display: block;
+			}
+			.back-button {
+				position: fixed;
+				top: 1.5rem;
+				left: 1.5rem;
+				z-index: 100;
+				padding: 0.5rem 1rem;
+				background: rgba(0, 0, 0, 0.5);
+				border: 1px solid rgba(255, 255, 255, 0.2);
+				border-radius: 4px;
+				color: #fff;
+				text-decoration: none;
+				font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+				font-size: 0.875rem;
+				transition: background 0.2s;
+			}
+			.back-button:hover {
+				background: rgba(0, 0, 0, 0.7);
+			}
+		</style>
+	</head>
+	<body>
+		<a href="/" class="back-button">← Back</a>
+		<script define:vars={{ slug: artwork.slug }}>
+			window.__artworkSlug = slug;
+		</script>
+		<script>
+			const slug = (window as any).__artworkSlug;
+			import(`../../artworks/${slug}/index.ts`);
+		</script>
+	</body>
+</html>

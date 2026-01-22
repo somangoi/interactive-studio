@@ -1,0 +1,86 @@
+---
+import { getArtworks } from '../artworks';
+
+const artworks = await getArtworks();
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Interactive Studio</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+				background: #0a0a0a;
+				color: #fff;
+				min-height: 100vh;
+				padding: 4rem 2rem;
+			}
+			.container {
+				max-width: 800px;
+				margin: 0 auto;
+			}
+			h1 {
+				font-size: 2.5rem;
+				font-weight: 300;
+				margin-bottom: 3rem;
+				letter-spacing: -0.02em;
+			}
+			.artworks {
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
+			}
+			.artwork-link {
+				display: block;
+				padding: 1.5rem;
+				background: #141414;
+				border-radius: 8px;
+				text-decoration: none;
+				color: inherit;
+				transition: background 0.2s, transform 0.2s;
+			}
+			.artwork-link:hover {
+				background: #1a1a1a;
+				transform: translateX(8px);
+			}
+			.artwork-title {
+				font-size: 1.25rem;
+				font-weight: 500;
+				margin-bottom: 0.5rem;
+			}
+			.artwork-description {
+				color: #888;
+				font-size: 0.9rem;
+			}
+			.artwork-date {
+				color: #555;
+				font-size: 0.8rem;
+				margin-top: 0.5rem;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Interactive Studio</h1>
+			<div class="artworks">
+				{artworks.map((artwork) => (
+					<a href={`/artworks/${artwork.slug}`} class="artwork-link">
+						<div class="artwork-title">{artwork.meta.title}</div>
+						<div class="artwork-description">{artwork.meta.description}</div>
+						<div class="artwork-date">{artwork.meta.date}</div>
+					</a>
+				))}
+			</div>
+		</div>
+	</body>
+</html>
