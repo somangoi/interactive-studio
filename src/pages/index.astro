@@ -74,7 +74,7 @@ const artworks = await getArtworks();
 			<h1>Interactive Studio</h1>
 			<div class="artworks">
 				{artworks.map((artwork) => (
-					<a href={`/artworks/${artwork.slug}`} class="artwork-link">
+					<a href={`${import.meta.env.BASE_URL}artworks/${artwork.slug}`} class="artwork-link">
 						<div class="artwork-title">{artwork.meta.title}</div>
 						<div class="artwork-description">{artwork.meta.description}</div>
 						<div class="artwork-date">{artwork.meta.date}</div>
