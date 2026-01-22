@@ -160,6 +160,10 @@ void main() {
     // 가장자리는 거의 투명, 중앙만 30% 정도
     float alpha = pow(fresnel, 1.5) * 0.3;
 
+    // 아날로그 필름 느낌의 미세 노이즈
+    float grain = fract(sin(dot(vUv * 500.0 + vPosition.xy * 100.0, vec2(12.9898, 78.233))) * 43758.5453);
+    color += (grain - 0.5) * 0.06;
+
     gl_FragColor = vec4(color, alpha);
 }
 `;
@@ -206,18 +210,33 @@ scene.add(sphere2);
 
 // Interaction state
 let isDragging = false;
-let selectedSphere = null;
+let selectedSphere: THREE.Mesh | null = null;
 let previousMousePosition = { x: 0, y: 0 };
 
+// 쫀득한 관성 효과를 위한 속도 상태
+const sphereVelocities = new Map<THREE.Mesh, { rotX: number; rotY: number; posX: number; posY: number; posZ: number }>();
+sphereVelocities.set(sphere1, { rotX: 0, rotY: 0, posX: 0, posY: 0, posZ: 0 });
+sphereVelocities.set(sphere2, { rotX: 0, rotY: 0, posX: 0, posY: 0, posZ: 0 });
+
+// 감속 계수 (낮을수록 더 오래 미끄러짐)
+const friction = 0.92;
+
+// 목표 값 (마우스 입력)
+let targetDeltaX = 0;
+let targetDeltaY = 0;
+
+// 호버 상태
+let hoveredSphere: THREE.Mesh | null = null;
+
 // Get intersected sphere
-function getIntersectedSphere(event) {
+function getIntersectedSphere(event: MouseEvent): THREE.Mesh | null {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects([sphere1, sphere2]);
 
-    return intersects.length > 0 ? intersects[0].object : null;
+    return intersects.length > 0 ? intersects[0].object as THREE.Mesh : null;
 }
 
 // Interaction mode: 'rotate' or 'move'
@@ -232,6 +251,8 @@ renderer.domElement.addEventListener('mousedown', (event) => {
         isDragging = true;
         selectedSphere = intersected;
         previousMousePosition = { x: event.clientX, y: event.clientY };
+        targetDeltaX = 0;
+        targetDeltaY = 0;
 
         // Shift 누르면 이동 모드
         interactionMode = event.shiftKey ? 'move' : 'rotate';
@@ -242,6 +263,7 @@ renderer.domElement.addEventListener('mousedown', (event) => {
 window.addEventListener('mousemove', (event) => {
     if (!isDragging) {
         const intersected = getIntersectedSphere(event);
+        hoveredSphere = intersected;
         if (intersected) {
             renderer.domElement.style.cursor = event.shiftKey ? 'move' : 'grab';
         } else {
@@ -250,20 +272,22 @@ window.addEventListener('mousemove', (event) => {
     }
 
     if (isDragging && selectedSphere) {
-        const deltaX = event.clientX - previousMousePosition.x;
-        const deltaY = event.clientY - previousMousePosition.y;
+        targetDeltaX = event.clientX - previousMousePosition.x;
+        targetDeltaY = event.clientY - previousMousePosition.y;
+
+        const vel = sphereVelocities.get(selectedSphere)!;
 
         if (interactionMode === 'move') {
-            // 위치 이동 (X, Y)
-            selectedSphere.position.x += deltaX * 0.005;
-            selectedSphere.position.y -= deltaY * 0.005;
+            // 부드러운 위치 이동 (둔감하게)
+            vel.posX += targetDeltaX * 0.001;
+            vel.posY -= targetDeltaY * 0.001;
         } else if (interactionMode === 'depth') {
-            // 깊이 이동 (Z)
-            selectedSphere.position.z += deltaY * 0.005;
+            // 부드러운 깊이 이동 (둔감하게)
+            vel.posZ += targetDeltaY * 0.001;
         } else {
-            // 회전
-            selectedSphere.rotation.y += deltaX * 0.01;
-            selectedSphere.rotation.x += deltaY * 0.01;
+            // 부드러운 회전
+            vel.rotY += targetDeltaX * 0.006;
+            vel.rotX += targetDeltaY * 0.006;
         }
 
         previousMousePosition = { x: event.clientX, y: event.clientY };
@@ -291,6 +315,60 @@ window.addEventListener('keyup', (event) => {
     }
 });
 
+// 호버 떨림을 위한 원본 스케일 저장
+const originalScales = new Map<THREE.Mesh, THREE.Vector3>();
+originalScales.set(sphere1, sphere1.scale.clone());
+originalScales.set(sphere2, sphere2.scale.clone());
+
+// 호버 강도 (부드러운 전환용)
+const hoverIntensity = new Map<THREE.Mesh, number>();
+hoverIntensity.set(sphere1, 0);
+hoverIntensity.set(sphere2, 0);
+
+// 쫀득한 물리 업데이트
+let time = 0;
+function updateSpherePhysics() {
+    time += 0.016;  // 약 60fps 기준
+
+    sphereVelocities.forEach((vel, sphere) => {
+        // 회전 적용 (부드럽게)
+        sphere.rotation.x += vel.rotX;
+        sphere.rotation.y += vel.rotY;
+
+        // 위치 적용 (부드럽게)
+        sphere.position.x += vel.posX;
+        sphere.position.y += vel.posY;
+        sphere.position.z += vel.posZ;
+
+        // 감속 (관성)
+        vel.rotX *= friction;
+        vel.rotY *= friction;
+        vel.posX *= friction;
+        vel.posY *= friction;
+        vel.posZ *= friction;
+
+        // 아주 작은 값은 0으로
+        if (Math.abs(vel.rotX) < 0.0001) vel.rotX = 0;
+        if (Math.abs(vel.rotY) < 0.0001) vel.rotY = 0;
+        if (Math.abs(vel.posX) < 0.0001) vel.posX = 0;
+        if (Math.abs(vel.posY) < 0.0001) vel.posY = 0;
+        if (Math.abs(vel.posZ) < 0.0001) vel.posZ = 0;
+
+        // 호버 강도 부드럽게 전환
+        const currentIntensity = hoverIntensity.get(sphere)!;
+        const targetIntensity = (sphere === hoveredSphere && !isDragging) ? 1 : 0;
+        const newIntensity = currentIntensity + (targetIntensity - currentIntensity) * 0.03;
+        hoverIntensity.set(sphere, newIntensity);
+
+        // 호버 시 미세한 떨림 효과
+        const original = originalScales.get(sphere)!;
+        const tremor = Math.sin(time * 8) * 0.008 + Math.sin(time * 13) * 0.005;
+        const breathe = Math.sin(time * 2) * 0.015;
+        const hoverEffect = (tremor + breathe) * newIntensity;
+        sphere.scale.setScalar(original.x * (1 + hoverEffect));
+    });
+}
+
 // Resize
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -301,6 +379,7 @@ window.addEventListener('resize', () => {
 // Animate
 function animate() {
     requestAnimationFrame(animate);
+    updateSpherePhysics();
     controls.update();
     renderer.render(scene, camera);
 }
