@@ -13,6 +13,7 @@
     "three": "^0.182.0"
   },
   "devDependencies": {
+    "@types/node": "^25.0.10",
     "@types/three": "^0.182.0"
   }
 }
